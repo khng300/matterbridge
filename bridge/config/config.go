@@ -145,6 +145,9 @@ type Protocol struct {
 	VerboseJoinPart        bool       // IRC
 	WebhookBindAddress     string     // mattermost, slack
 	WebhookURL             string     // mattermost, slack
+	UseImgur               bool       // mattermost, slack, discord, telegram, gitter
+	ImgurClientID          string     // mattermost, slack, discord, telegram, gitter
+	MediaFileExts          []string
 }
 
 type ChannelOptions struct {

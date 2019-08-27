@@ -15,7 +15,33 @@ import (
 	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/42wim/matterbridge/gateway/bridgemap"
+	"github.com/koffeinsource/go-imgur"
+	"github.com/sirupsen/logrus"
 )
+
+type logger struct {
+	logger *logrus.Entry
+}
+
+func (l logger) Criticalf(format string, args ...interface{}) {
+	l.logger.Panicf(format, args...)
+}
+
+func (l logger) Debugf(format string, args ...interface{}) {
+	l.logger.Debugf(format, args...)
+}
+
+func (l logger) Errorf(format string, args ...interface{}) {
+	l.logger.Errorf(format, args...)
+}
+
+func (l logger) Infof(format string, args ...interface{}) {
+	l.logger.Infof(format, args...)
+}
+
+func (l logger) Warningf(format string, args ...interface{}) {
+	l.logger.Warningf(format, args...)
+}
 
 // handleEventFailure handles failures and reconnects bridges.
 func (r *Router) handleEventFailure(msg *config.Message) {
@@ -66,6 +92,15 @@ func (r *Router) handleEventRejoinChannels(msg *config.Message) {
 	}
 }
 
+func isMediaFile(fileExt string, mediaExts []string) bool {
+	for _, ext := range mediaExts {
+		if strings.Compare(strings.ToLower(fileExt), strings.ToLower(ext)) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // handleFiles uploads or places all files on the given msg to the MediaServer and
 // adds the new URL of the file on the MediaServer onto the given msg.
 func (gw *Gateway) handleFiles(msg *config.Message) {
@@ -74,7 +109,8 @@ func (gw *Gateway) handleFiles(msg *config.Message) {
 	// If we don't have a attachfield or we don't have a mediaserver configured return
 	if msg.Extra == nil ||
 		(gw.BridgeValues().General.MediaServerUpload == "" &&
-			gw.BridgeValues().General.MediaDownloadPath == "") {
+			gw.BridgeValues().General.MediaDownloadPath == "" &&
+			!gw.BridgeValues().General.UseImgur) {
 		return
 	}
 
@@ -92,24 +128,40 @@ func (gw *Gateway) handleFiles(msg *config.Message) {
 
 		sha1sum := fmt.Sprintf("%x", sha1.Sum(*fi.Data))[:8] //nolint:gosec
 
-		if gw.BridgeValues().General.MediaServerUpload != "" {
-			// Use MediaServerUpload. Upload using a PUT HTTP request and basicauth.
-			if err := gw.handleFilesUpload(&fi); err != nil {
-				gw.logger.Error(err)
+		var durl string
+
+		if gw.BridgeValues().General.UseImgur && isMediaFile(ext, gw.BridgeValues().General.MediaFileExts) {
+			client := new(imgur.Client)
+			client.HTTPClient = new(http.Client)
+			client.Log = &logger{
+				logger: gw.logger,
+			}
+			client.ImgurClientID = gw.BridgeValues().General.ImgurClientID
+			Ii, st, err := client.UploadImage(*fi.Data, "", "file", "", "")
+			if st != 200 || err != nil {
+				gw.logger.Errorf("file upload to failed: st = %v, err = %#v", st, err)
 				continue
 			}
+			durl = Ii.Link
 		} else {
-			// Use MediaServerPath. Place the file on the current filesystem.
-			if err := gw.handleFilesLocal(&fi); err != nil {
-				gw.logger.Error(err)
-				continue
+			if gw.BridgeValues().General.MediaServerUpload != "" {
+				// Use MediaServerUpload. Upload using a PUT HTTP request and basicauth.
+				if err := gw.handleFilesUpload(&fi); err != nil {
+					gw.logger.Error(err)
+					continue
+				}
+			} else {
+				// Use MediaServerPath. Place the file on the current filesystem.
+				if err := gw.handleFilesLocal(&fi); err != nil {
+					gw.logger.Error(err)
+					continue
+				}
 			}
+			// Download URL.
+			durl := gw.BridgeValues().General.MediaServerDownload + "/" + sha1sum + "/" + fi.Name
+			gw.logger.Debugf("mediaserver download URL = %s", durl)
 		}
 
-		// Download URL.
-		durl := gw.BridgeValues().General.MediaServerDownload + "/" + sha1sum + "/" + fi.Name
-
-		gw.logger.Debugf("mediaserver download URL = %s", durl)
 
 		// We uploaded/placed the file successfully. Add the SHA and URL.
 		extra := msg.Extra["file"][i].(config.FileInfo)

@@ -20,6 +20,8 @@ require (
 	github.com/hpcloud/tail v1.0.0 // indirect
 	github.com/jpillora/backoff v0.0.0-20180909062703-3050d21c67d7
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
+	github.com/koffeinsource/go-imgur v0.1.0
+	github.com/koffeinsource/go-klogger v0.1.0
 	github.com/labstack/echo/v4 v4.1.6
 	github.com/lrstanley/girc v0.0.0-20190210212025-51b8e096d398
 	github.com/lusis/go-slackbot v0.0.0-20180109053408-401027ccfef5 // indirect
