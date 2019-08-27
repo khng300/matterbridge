@@ -147,6 +147,8 @@ type Protocol struct {
 	WebhookURL             string     // mattermost, slack
 	UseImgur               bool       // mattermost, slack, discord, telegram, gitter
 	ImgurClientID          string     // mattermost, slack, discord, telegram, gitter
+	ImgurLMDBPath          string     // mattermost, slack, discord, telegram, gitter
+	ImgurLMDBSize          int64     // mattermost, slack, discord, telegram, gitter
 	MediaFileExts          []string
 }
 

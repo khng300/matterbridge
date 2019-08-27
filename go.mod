@@ -6,6 +6,7 @@ require (
 	github.com/Jeffail/gabs v1.1.1 // indirect
 	github.com/Philipp15b/go-steam v1.0.1-0.20180818081528-681bd9573329
 	github.com/Rhymen/go-whatsapp v0.0.2
+	github.com/bmatsuo/lmdb-go v1.8.0
 	github.com/bwmarrin/discordgo v0.19.0
 	github.com/d5/tengo v1.24.1
 	github.com/dfordsoft/golib v0.0.0-20180902042739-76ee6ab99bec

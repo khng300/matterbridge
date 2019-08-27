@@ -17,7 +17,11 @@ import (
 	"github.com/42wim/matterbridge/gateway/bridgemap"
 	"github.com/koffeinsource/go-imgur"
 	"github.com/sirupsen/logrus"
+	"github.com/bmatsuo/lmdb-go/lmdb"
 )
+
+var ImgurLMDBEnv *lmdb.Env
+var ImgurLMDBDBI lmdb.DBI
 
 type logger struct {
 	logger *logrus.Entry
@@ -141,6 +145,20 @@ func (gw *Gateway) handleFiles(msg *config.Message) {
 			if st != 200 || err != nil {
 				gw.logger.Errorf("file upload to failed: st = %v, err = %#v", st, err)
 				continue
+			}
+			if ImgurLMDBEnv != nil {
+				err = ImgurLMDBEnv.Update(func(txn *lmdb.Txn) (err error) {
+					err = txn.Put(ImgurLMDBDBI, []byte(Ii.ID), []byte(Ii.Deletehash), 0)
+					if err != nil {
+						return err
+					}
+					return nil
+				})
+				if err != nil {
+					gw.logger.Errorf("Failed to insert Imgur ID-Deletehash entry into database: %s -- %s", Ii.ID, Ii.Deletehash)
+				} else {
+					gw.logger.Debugf("Inserted Imgur ID-Deletehash entry into database: %s -- %s", Ii.ID, Ii.Deletehash)
+				}
 			}
 			durl = Ii.Link
 		} else {
